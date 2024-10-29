@@ -104,8 +104,8 @@ def print_spellbook(spellbook):
             output.append(f"{level}: {spells}")
     
     formatted_output = "; ".join(output)
-    print(f"> {formatted_output}.")
-
+    print(f"{formatted_output}.")
+    
 def select_spell_list(prompt):
     """
     Prompt user to select a spell list from available options.
