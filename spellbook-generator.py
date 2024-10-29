@@ -2,6 +2,7 @@ import random
 import csv
 import os
 from pathlib import Path
+import math
 
 def get_spell_lists():
     """
@@ -21,7 +22,6 @@ def get_spell_lists():
 def load_spells_from_csv(filename):
     """
     Load spells from a CSV file in the spell-lists directory.
-    Each line in the file represents a spell level, with spells comma-separated.
     
     :param filename: Name of the CSV file
     :return: Dictionary with spell levels as keys and lists of spells as values
@@ -54,11 +54,12 @@ def get_available_spell_levels(char_level):
     else:
         return [1, 2, 3]
 
-def generate_spellbook(spells_by_level, char_level, int_modifier):
+def generate_spellbook(primary_spells, secondary_spells, char_level, int_modifier):
     """
-    Generate a spellbook for a magic-user based on their character level and INT modifier.
+    Generate a spellbook using spells from both primary and secondary sources.
     
-    :param spells_by_level: Dictionary of spells organized by level
+    :param primary_spells: Dictionary of spells from primary source
+    :param secondary_spells: Dictionary of spells from secondary source
     :param char_level: Character level of the magic-user
     :param int_modifier: Intelligence modifier of the magic-user
     :return: Dictionary of selected spells organized by level
@@ -66,12 +67,26 @@ def generate_spellbook(spells_by_level, char_level, int_modifier):
     spellbook = {1: ["Read Magic"], 2: [], 3: []}
     
     for level in range(1, char_level + 1):
-        spells_to_add = max(1, 1 + int_modifier)  # Minimum 1 spell per level
+        total_spells = max(1, 1 + int_modifier)  # Minimum 1 spell per level
+        primary_count = math.ceil(total_spells * 2/3)
+        secondary_count = total_spells - primary_count
+        
         available_levels = get_available_spell_levels(level)
         
-        for _ in range(spells_to_add):
+        # Add spells from primary source
+        for _ in range(primary_count):
             spell_level = random.choice(available_levels)
-            available_spells = [spell for spell in spells_by_level[spell_level] if spell not in spellbook[spell_level]]
+            available_spells = [spell for spell in primary_spells[spell_level] 
+                              if spell not in spellbook[spell_level]]
+            if available_spells:
+                new_spell = random.choice(available_spells)
+                spellbook[spell_level].append(new_spell)
+        
+        # Add spells from secondary source
+        for _ in range(secondary_count):
+            spell_level = random.choice(available_levels)
+            available_spells = [spell for spell in secondary_spells[spell_level] 
+                              if spell not in spellbook[spell_level]]
             if available_spells:
                 new_spell = random.choice(available_spells)
                 spellbook[spell_level].append(new_spell)
@@ -81,22 +96,21 @@ def generate_spellbook(spells_by_level, char_level, int_modifier):
 def print_spellbook(spellbook):
     """
     Print the generated spellbook in a compact, single-line format.
-    
-    :param spellbook: Dictionary of spells organized by level
     """
     output = []
     for level in sorted(spellbook.keys()):
         if spellbook[level]:
-            spells = ", ".join(spellbook[level])
+            spells = ", ".join(sorted(spellbook[level]))  # Sort spells alphabetically
             output.append(f"{level}: {spells}")
     
     formatted_output = "; ".join(output)
     print(f"> {formatted_output}.")
 
-def select_spell_list():
+def select_spell_list(prompt):
     """
     Prompt user to select a spell list from available options.
     
+    :param prompt: Custom prompt message for selection
     :return: Selected spell list filename or None if no valid selection
     """
     spell_lists = get_spell_lists()
@@ -104,7 +118,7 @@ def select_spell_list():
     if not spell_lists:
         return None
     
-    print("\nAvailable spell lists:")
+    print(f"\n{prompt}")
     for i, filename in enumerate(spell_lists, 1):
         print(f"{i}. {filename}")
     
@@ -123,13 +137,20 @@ if __name__ == "__main__":
     print("----------------------------------")
     
     while True:
-        spell_list_file = select_spell_list()
-        if not spell_list_file:
+        # Select primary spell list
+        primary_list = select_spell_list("Select PRIMARY spell list (2/3 of spells will come from this):")
+        if not primary_list:
             print("\nNo spell lists available. Please add CSV files to the spell-lists directory.")
             break
+        
+        # Select secondary spell list
+        secondary_list = select_spell_list("Select SECONDARY spell list (1/3 of spells will come from this):")
+        if not secondary_list:
+            break
             
-        spells_by_level = load_spells_from_csv(spell_list_file)
-        if not spells_by_level:
+        primary_spells = load_spells_from_csv(primary_list)
+        secondary_spells = load_spells_from_csv(secondary_list)
+        if not primary_spells or not secondary_spells:
             break
             
         try:
@@ -146,8 +167,9 @@ if __name__ == "__main__":
                 print("Please enter a valid Intelligence modifier (-2, -1, 0, +1, or +2).")
                 continue
             
-            print(f"\nUsing spell list: {spell_list_file}")
-            generated_spellbook = generate_spellbook(spells_by_level, char_level, int_modifier)
+            print(f"\nUsing primary list: {primary_list}")
+            print(f"Using secondary list: {secondary_list}")
+            generated_spellbook = generate_spellbook(primary_spells, secondary_spells, char_level, int_modifier)
             print(f"Generated Spellbook for level {char_level} Magic-User with INT modifier {int_modifier}:")
             print_spellbook(generated_spellbook)
             print()
