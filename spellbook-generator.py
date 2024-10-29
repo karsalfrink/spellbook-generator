@@ -1,21 +1,44 @@
 import random
 import csv
+import os
+from pathlib import Path
+
+def get_spell_lists():
+    """
+    Get list of available spell list files from the spell-lists directory.
+    
+    :return: List of available spell list filenames
+    """
+    spell_lists_dir = Path('spell-lists')
+    if not spell_lists_dir.exists():
+        print("Creating spell-lists directory...")
+        spell_lists_dir.mkdir(exist_ok=True)
+        print("Please add spell list CSV files to the spell-lists directory.")
+        return []
+    
+    return [f.name for f in spell_lists_dir.glob('*.csv')]
 
 def load_spells_from_csv(filename):
     """
-    Load spells from a CSV file.
+    Load spells from a CSV file in the spell-lists directory.
     Each line in the file represents a spell level, with spells comma-separated.
     
     :param filename: Name of the CSV file
     :return: Dictionary with spell levels as keys and lists of spells as values
     """
     spells_by_level = {1: [], 2: [], 3: []}
-    with open(filename, 'r') as file:
-        reader = csv.reader(file)
-        for index, row in enumerate(reader, start=1):
-            if index <= 3:  # Only process first 3 levels
-                spells_by_level[index] = [spell.strip() for spell in row if spell.strip()]
-    return spells_by_level
+    filepath = Path('spell-lists') / filename
+    
+    try:
+        with open(filepath, 'r') as file:
+            reader = csv.reader(file)
+            for index, row in enumerate(reader, start=1):
+                if index <= 3:  # Only process first 3 levels
+                    spells_by_level[index] = [spell.strip() for spell in row if spell.strip()]
+        return spells_by_level
+    except FileNotFoundError:
+        print(f"Error: Could not find {filename} in the spell-lists directory.")
+        return None
 
 def get_available_spell_levels(char_level):
     """
@@ -68,16 +91,49 @@ def print_spellbook(spellbook):
             output.append(f"{level}: {spells}")
     
     formatted_output = "; ".join(output)
-    print(f"{formatted_output}.")
+    print(f"> {formatted_output}.")
+
+def select_spell_list():
+    """
+    Prompt user to select a spell list from available options.
+    
+    :return: Selected spell list filename or None if no valid selection
+    """
+    spell_lists = get_spell_lists()
+    
+    if not spell_lists:
+        return None
+    
+    print("\nAvailable spell lists:")
+    for i, filename in enumerate(spell_lists, 1):
+        print(f"{i}. {filename}")
+    
+    while True:
+        try:
+            choice = int(input("\nSelect a spell list (enter the number): "))
+            if 1 <= choice <= len(spell_lists):
+                return spell_lists[choice - 1]
+            print("Please enter a valid number from the list.")
+        except ValueError:
+            print("Please enter a valid number.")
 
 # Main execution
 if __name__ == "__main__":
-    filename = "black-magic-spells.csv"
-    spells_by_level = load_spells_from_csv(filename)
-
+    print("D&D Magic-User Spellbook Generator")
+    print("----------------------------------")
+    
     while True:
+        spell_list_file = select_spell_list()
+        if not spell_list_file:
+            print("\nNo spell lists available. Please add CSV files to the spell-lists directory.")
+            break
+            
+        spells_by_level = load_spells_from_csv(spell_list_file)
+        if not spells_by_level:
+            break
+            
         try:
-            char_level = int(input("Enter the level of the Magic-User (1-6), or 0 to quit: "))
+            char_level = int(input("\nEnter the level of the Magic-User (1-6), or 0 to quit: "))
             if char_level == 0:
                 print("Thank you for using the Spellbook Generator. Goodbye!")
                 break
@@ -90,9 +146,10 @@ if __name__ == "__main__":
                 print("Please enter a valid Intelligence modifier (-2, -1, 0, +1, or +2).")
                 continue
             
+            print(f"\nUsing spell list: {spell_list_file}")
             generated_spellbook = generate_spellbook(spells_by_level, char_level, int_modifier)
-            print(f"\nGenerated Spellbook for level {char_level} Magic-User with INT modifier {int_modifier}:")
+            print(f"Generated Spellbook for level {char_level} Magic-User with INT modifier {int_modifier}:")
             print_spellbook(generated_spellbook)
-            print()  # Add a blank line for readability
+            print()
         except ValueError:
             print("Please enter valid numbers.")
