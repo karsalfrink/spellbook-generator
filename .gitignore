@@ -1,4 +1,5 @@
 spell-lists/*
+!spell-lists/example-spell-list.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
